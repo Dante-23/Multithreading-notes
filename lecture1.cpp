@@ -19,14 +19,34 @@ using namespace std;
     However, this rule is violated in certain error conditions :-
         * If a thread seg-fault, entire processes is terminated.
         * A signal is delivered per process, not per thread.
-    
+        * 
+    One very important observation :-
+        * cout is not thread safe. The output could get interleaved.
+        You could try to make cout thread safe.
+        * printf is thread safe. There would be no interleaving. 
+
+
+    A great answer from stack overflow :-
+        printf("Guest %ld goes to the check-in receptionist.\n", my_rank);
+        When you use printf, your string is formatted into an internal buffer and then output to the console in a single operation ("Guest 2 waits for check-in.").
+
+        cout << "Guest " << guestNumber << " waits for check-in." << endl;
+        When you use cout, your string is output to the console in multiple parts - "Guest", followed by guestNumber, followed by " waits for check-in.", followed by endl. This is because each call to the << operator takes place as if it were a separate function call (it returns a reference to the same cout object for the next call to use).
+
+        So although writing to the console itself is thread-safe and atomic, in the cout case it's only atomic for each separate sub-string.
+
+        The solution if you don't want to use printf would be to a) use a semaphore or other locking mechanism, or b) format the text before printing it using stringstream, and then output it as a single string.
 */
 
 void *thread_fn_callback(void *args) {
     char *input = (char*) args;
     int cnt = 0;
     while(cnt < 10) {
-        cout << "input string: " << input << endl;
+        string output = "";
+        output += "Input string: ";
+        output += input;
+        cout << "Input string: " << input << "\n";
+        // printf("Input string: %s\n", input);
         if (cnt == 5) pthread_exit(0);
         cnt++;
         sleep(1);
@@ -53,5 +73,7 @@ int main() {
     // If main thread exits, then all its child threads are killed. 
     // But if we do pthread_exit(0) on the main thread, 
     // then the child threads can continue to stay alive. 
-    pause();
+    // pause();
+    pthread_exit(0);
+    return 0;
 }
